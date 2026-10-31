@@ -62,23 +62,49 @@ const post = (message: unknown) => {
   scope.postMessage(message)
 }
 
-async function load(modelId: string, device: 'webgpu' | 'wasm') {
+type RuntimeDevice = 'webgpu' | 'wasm'
+
+async function createGenerator(modelId: string, device: RuntimeDevice) {
+  const instance = await pipeline('text-generation', modelId, {
+    device,
+    dtype: 'q4',
+    progress_callback: (progress: { status: string; progress?: number; file?: string }) => {
+      if (progress.status === 'progress') {
+        post({ type: 'progress', progress: progress.progress ?? 0, file: progress.file ?? '' })
+      }
+    },
+  })
+  return instance as unknown as Generator
+}
+
+function isWebGPUFailure(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error)
+  return /webgpu|gpu adapter|no available backend|web gpu/i.test(message)
+}
+
+async function load(modelId: string, device: RuntimeDevice) {
   if (generator && loadedModel === modelId) return
   if (loading) return loading
   loading = (async () => {
     post({ type: 'status', status: 'loading', message: 'Preparing the local model…' })
-    const instance = await pipeline('text-generation', modelId, {
-      device,
-      dtype: 'q4',
-      progress_callback: (progress: { status: string; progress?: number; file?: string }) => {
-        if (progress.status === 'progress') {
-          post({ type: 'progress', progress: progress.progress ?? 0, file: progress.file ?? '' })
-        }
-      },
-    })
-    generator = instance as unknown as Generator
+    let activeDevice = device
+    let instance: Generator
+    try {
+      instance = await createGenerator(modelId, device)
+    } catch (error) {
+      if (device !== 'webgpu' || !isWebGPUFailure(error)) throw error
+      activeDevice = 'wasm'
+      post({
+        type: 'runtime',
+        device: activeDevice,
+        message: 'WebGPU is unavailable on this device. VELM switched to the compatible WASM runtime.',
+      })
+      post({ type: 'status', status: 'loading', message: 'Preparing the WASM runtime…' })
+      instance = await createGenerator(modelId, activeDevice)
+    }
+    generator = instance
     loadedModel = modelId
-    post({ type: 'ready', modelId })
+    post({ type: 'ready', modelId, device: activeDevice })
   })()
   try {
     await loading

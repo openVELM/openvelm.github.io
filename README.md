@@ -46,7 +46,7 @@ The models remain available from their official Hugging Face repositories too. V
 - Project JSON is stored in IndexedDB; source media is stored in OPFS when available.
 - Exports are recorded locally with `canvas.captureStream()`, Web Audio, and MediaRecorder.
 - Prompt commands run deterministically without a model whenever possible.
-- Broader prompts use Transformers.js and ONNX Runtime in a dedicated Web Worker, with WebGPU or WASM selected from browser capabilities.
+- Broader prompts use Transformers.js and ONNX Runtime in a dedicated Web Worker. VELM checks for a usable WebGPU adapter and automatically falls back to WASM if WebGPU initialization fails.
 - Optional quantized SmolLM2 models download from the GitHub Releases mirror, with automatic Hugging Face fallback, into the Transformers browser cache. Model weights are not included in Git history, the Pages site, or the application bundle.
 - Model output is parsed as a versioned JSON operation plan, schema-checked, semantically validated, and shown for Apply/Discard review before changing the project.
 - Manual and prompt-driven edits share the same atomic, undoable operation pathway.

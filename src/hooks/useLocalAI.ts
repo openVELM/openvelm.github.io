@@ -18,8 +18,27 @@ export function useLocalAI() {
   const [modelId, setModelId] = useState<string>(MODEL_OPTIONS[0].id)
   const [cached, setCached] = useState(false)
   const [source, setSource] = useState<'github' | 'huggingface' | null>(null)
+  const [runtimeNotice, setRuntimeNotice] = useState('')
+  const [device, setDevice] = useState<'webgpu' | 'wasm'>(
+    typeof navigator !== 'undefined' && 'gpu' in navigator ? 'webgpu' : 'wasm',
+  )
 
-  const device = typeof navigator !== 'undefined' && 'gpu' in navigator ? 'webgpu' : 'wasm'
+  useEffect(() => {
+    let active = true
+    const gpu = (navigator as Navigator & {
+      gpu?: { requestAdapter: () => Promise<unknown | null> }
+    }).gpu
+    if (!gpu) {
+      setDevice('wasm')
+      return
+    }
+    void gpu.requestAdapter().then((adapter) => {
+      if (active) setDevice(adapter ? 'webgpu' : 'wasm')
+    }).catch(() => {
+      if (active) setDevice('wasm')
+    })
+    return () => { active = false }
+  }, [])
 
   const clearWatchdog = useCallback(() => {
     if (watchdogRef.current !== null) window.clearTimeout(watchdogRef.current)
@@ -47,8 +66,11 @@ export function useLocalAI() {
     if (workerRef.current) return workerRef.current
     const worker = new Worker(new URL('../workers/ai.worker.ts', import.meta.url), { type: 'module' })
     worker.onmessage = (event: MessageEvent) => {
-      const message = event.data as { type: string; status?: AIStatus; message?: string; progress?: number; file?: string; text?: string; source?: 'github' | 'huggingface' }
-      if (message.type === 'source') {
+      const message = event.data as { type: string; status?: AIStatus; message?: string; progress?: number; file?: string; text?: string; source?: 'github' | 'huggingface'; device?: 'webgpu' | 'wasm' }
+      if (message.type === 'runtime') {
+        if (message.device) setDevice(message.device)
+        setRuntimeNotice(message.message ?? '')
+      } else if (message.type === 'source') {
         setSource(message.source ?? null)
       } else if (message.type === 'progress') {
         armWatchdog()
@@ -61,6 +83,7 @@ export function useLocalAI() {
         if (message.status === 'loading') setProgress(0)
       } else if (message.type === 'ready') {
         clearWatchdog()
+        if (message.device) setDevice(message.device)
         setStatus('ready')
         setProgress(100)
         setCached(true)
@@ -110,6 +133,7 @@ export function useLocalAI() {
 
   const loadModel = useCallback(() => {
     setError('')
+    setRuntimeNotice('')
     setSource(null)
     setStatus('loading')
     setProgress(0)
@@ -135,6 +159,7 @@ export function useLocalAI() {
     if ('caches' in window) await caches.delete('transformers-cache')
     setCached(false)
     setSource(null)
+    setRuntimeNotice('')
     setStatus('idle')
     setProgress(0)
     setError('')
@@ -149,6 +174,7 @@ export function useLocalAI() {
     setModelId,
     cached,
     source,
+    runtimeNotice,
     device,
     loadModel,
     generate,

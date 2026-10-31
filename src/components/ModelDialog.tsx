@@ -24,6 +24,7 @@ export function ModelDialog({ open, onClose, ai }: Props) {
   if (!open) return null
   const selected = MODEL_OPTIONS.find((model) => model.id === ai.modelId) ?? MODEL_OPTIONS[0]
   const busy = ai.status === 'loading' || ai.status === 'thinking'
+  const connectionError = /file|download|connect|storage|unauthorized|network/i.test(ai.error)
 
   return (
     <div className="modal-backdrop" onPointerDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
@@ -69,6 +70,8 @@ export function ModelDialog({ open, onClose, ai }: Props) {
           <div><Database size={17} /><span>Storage</span><strong>{ai.cached ? 'Downloaded' : 'Not downloaded'}</strong></div>
         </div>
 
+        {ai.runtimeNotice && <div className="runtime-notice" role="status">{ai.runtimeNotice}</div>}
+
         {busy && (
           <div className="download-progress" aria-live="polite">
             <div className="progress-copy"><span>{ai.status === 'thinking' ? 'Planning your edit…' : ai.source === 'huggingface' ? 'Downloading from Hugging Face…' : 'Downloading from GitHub…'}</span><span className="mono">{Math.round(ai.progress)}%</span></div>
@@ -78,7 +81,7 @@ export function ModelDialog({ open, onClose, ai }: Props) {
         )}
 
         {ai.status === 'ready' && <div className="model-ready"><Check size={17} /> {selected.name} is ready on this device.</div>}
-        {ai.error && <div className="error-message" role="alert">{ai.error}<br />Check your connection and available storage, then try again.</div>}
+        {ai.error && <div className="error-message" role="alert">{ai.error}{connectionError && <><br />Check your connection and available storage, then try again.</>}</div>}
 
         <div className="dialog-actions">
           {ai.status !== 'ready' ? (

@@ -227,6 +227,7 @@ input[type='range'] { accent-color: var(--signal); cursor: pointer; }
 .model-facts svg { grid-row: 1 / 3; color: var(--muted); }
 .model-facts span { color: var(--muted); font-size: 12px; }
 .model-facts strong { font-size: 14px; }
+.runtime-notice { margin-top: 14px; padding: 11px 13px; border: 1px solid rgb(255 193 7 / 0.3); border-radius: 8px; background: var(--signal-soft); color: var(--paper); font-size: 13px; }
 .download-progress { padding: 18px 0 6px; }
 .progress-copy { display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; margin-bottom: 8px; }
 .progress-track { height: 5px; background: var(--ink-3); overflow: hidden; border-radius: 99px; }
