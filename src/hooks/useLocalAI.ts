@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { MODEL_OPTIONS } from '@/lib/models'
 
-export const MODEL_OPTIONS = [
-  { id: 'onnx-community/SmolLM2-135M-Instruct', name: 'SmolLM2 135M', detail: 'Smallest · Q4', size: 'Recommended for phones' },
-  { id: 'onnx-community/SmolLM2-360M-Instruct', name: 'SmolLM2 360M', detail: 'More capable · Q4', size: 'For devices with more memory' },
-] as const
+export { GITHUB_MODEL_RELEASE, MODEL_OPTIONS } from '@/lib/models'
 
 export type AIStatus = 'idle' | 'loading' | 'ready' | 'thinking' | 'error'
 
@@ -19,6 +17,7 @@ export function useLocalAI() {
   const [error, setError] = useState('')
   const [modelId, setModelId] = useState<string>(MODEL_OPTIONS[0].id)
   const [cached, setCached] = useState(false)
+  const [source, setSource] = useState<'github' | 'huggingface' | null>(null)
 
   const device = typeof navigator !== 'undefined' && 'gpu' in navigator ? 'webgpu' : 'wasm'
 
@@ -48,8 +47,10 @@ export function useLocalAI() {
     if (workerRef.current) return workerRef.current
     const worker = new Worker(new URL('../workers/ai.worker.ts', import.meta.url), { type: 'module' })
     worker.onmessage = (event: MessageEvent) => {
-      const message = event.data as { type: string; status?: AIStatus; message?: string; progress?: number; file?: string; text?: string }
-      if (message.type === 'progress') {
+      const message = event.data as { type: string; status?: AIStatus; message?: string; progress?: number; file?: string; text?: string; source?: 'github' | 'huggingface' }
+      if (message.type === 'source') {
+        setSource(message.source ?? null)
+      } else if (message.type === 'progress') {
         armWatchdog()
         setStatus('loading')
         setProgress(Math.max(0, Math.min(100, message.progress ?? 0)))
@@ -109,6 +110,7 @@ export function useLocalAI() {
 
   const loadModel = useCallback(() => {
     setError('')
+    setSource(null)
     setStatus('loading')
     setProgress(0)
     armWatchdog()
@@ -132,6 +134,7 @@ export function useLocalAI() {
     pendingRef.current = null
     if ('caches' in window) await caches.delete('transformers-cache')
     setCached(false)
+    setSource(null)
     setStatus('idle')
     setProgress(0)
     setError('')
@@ -145,6 +148,7 @@ export function useLocalAI() {
     modelId,
     setModelId,
     cached,
+    source,
     device,
     loadModel,
     generate,

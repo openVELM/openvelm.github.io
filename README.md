@@ -11,6 +11,8 @@ app/                 Build configuration, package.json, and package-lock.json
 src/                 React application source
 public/              Static files, including .nojekyll
 scripts/build.sh     Docker build script
+scripts/mirror_models.py  Q4 release-asset packager
+.github/workflows/   Manual GitHub model-mirror workflow
 docs/                Generated GitHub Pages site
 ```
 
@@ -28,6 +30,16 @@ Commit the source and generated `docs/` directory, then push to GitHub. In **Set
 
 Vite uses a relative asset base, so the build works from a repository subpath such as `https://username.github.io/velm/`. No application server, database, environment secret, cloud function, or inference endpoint is required. Use HTTPS (provided by GitHub Pages) for service-worker, persistent-storage, WebGPU, and OPFS support.
 
+## Publish the GitHub model mirror
+
+The app expects public release assets at `openVELM/openvelm.github.io/releases/download/models-v1`. To create them without downloading models to your computer:
+
+1. Push this repository, including `.github/workflows/mirror-models.yml` and `scripts/mirror_models.py`.
+2. Open the repository on GitHub and go to **Actions → Mirror models to GitHub Releases → Run workflow**.
+3. Wait for the workflow to finish. It creates or updates the public **`models-v1`** release with the Q4 model, tokenizer, configuration, license files, and a `models-manifest.json` containing upstream revisions and SHA-256 hashes.
+
+The models remain available from their official Hugging Face repositories too. VELM tries the GitHub release first and falls back to Hugging Face separately for each file. No Hugging Face token is required for these public models. Model weights stay out of Git history, GitHub Pages, and the application bundle; GitHub Releases hosts them as flat downloadable assets.
+
 ## Local-first architecture
 
 - Imported video is decoded and rendered locally with HTML video and Canvas 2D.
@@ -35,7 +47,7 @@ Vite uses a relative asset base, so the build works from a repository subpath su
 - Exports are recorded locally with `canvas.captureStream()`, Web Audio, and MediaRecorder.
 - Prompt commands run deterministically without a model whenever possible.
 - Broader prompts use Transformers.js and ONNX Runtime in a dedicated Web Worker, with WebGPU or WASM selected from browser capabilities.
-- Optional quantized SmolLM2 models download directly from Hugging Face into the Transformers browser cache. Model weights are not included in this repository or the application bundle.
+- Optional quantized SmolLM2 models download from the GitHub Releases mirror, with automatic Hugging Face fallback, into the Transformers browser cache. Model weights are not included in Git history, the Pages site, or the application bundle.
 - Model output is parsed as a versioned JSON operation plan, schema-checked, semantically validated, and shown for Apply/Discard review before changing the project.
 - Manual and prompt-driven edits share the same atomic, undoable operation pathway.
 
@@ -47,8 +59,8 @@ Export runs in real time: a ten-second edit takes approximately ten seconds to r
 
 ## Privacy and network access
 
-VELM has no VELM-operated backend. Videos, project data, and prompts are not uploaded to an application server. Network access is used for the static application itself and, only when requested, model files from Hugging Face. Opening the model-source link also visits Hugging Face.
+VELM has no VELM-operated backend. Videos, project data, and prompts are not uploaded to an application server. Network access is used for the static application itself and, only when requested, model files from GitHub Releases or Hugging Face. Opening a model-source link also visits the corresponding public host.
 
 ## Main libraries and assets
 
-Built with React, TypeScript, Vite, Transformers.js, ONNX Runtime, idb, Zod, Lucide icons, Lato, and IBM Plex Mono. The optional language models are `onnx-community/SmolLM2-135M-Instruct` and `onnx-community/SmolLM2-360M-Instruct`, subject to their upstream model licenses. The included demo video and VELM icons are original project assets.
+Built with React, TypeScript, Vite, Transformers.js, ONNX Runtime, idb, Zod, Lucide icons, Lato, and IBM Plex Mono. The optional language models are `HuggingFaceTB/SmolLM2-135M-Instruct` and `HuggingFaceTB/SmolLM2-360M-Instruct`, subject to their upstream Apache 2.0 model licenses. The included demo video and VELM icons are original project assets.

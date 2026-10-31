@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { Check, Cpu, Database, Download, ExternalLink, LoaderCircle, ShieldCheck, Trash2, X } from 'lucide-react'
+import { Check, Cpu, Database, Download, ExternalLink, Github, LoaderCircle, ShieldCheck, Trash2, X } from 'lucide-react'
 import { MODEL_OPTIONS, useLocalAI } from '@/hooks/useLocalAI'
 
 type AIController = ReturnType<typeof useLocalAI>
@@ -38,7 +38,13 @@ export function ModelDialog({ open, onClose, ai }: Props) {
 
         <div className="local-explainer">
           <ShieldCheck size={22} />
-          <p>The model is downloaded directly to this browser. Inference runs on your device—no prompt or video is sent to VELM.</p>
+          <p>Download once, then edit privately. Inference runs on your device—no prompt or video is sent to VELM.</p>
+        </div>
+
+        <div className="download-route">
+          <Github size={18} />
+          <div><strong>GitHub mirror</strong><span>Automatic Hugging Face fallback · no token needed</span></div>
+          <span className="route-badge">2 SOURCES</span>
         </div>
 
         <div className="model-options" role="radiogroup" aria-label="Language model">
@@ -65,7 +71,7 @@ export function ModelDialog({ open, onClose, ai }: Props) {
 
         {busy && (
           <div className="download-progress" aria-live="polite">
-            <div className="progress-copy"><span>{ai.status === 'thinking' ? 'Planning your edit…' : 'Downloading model files…'}</span><span className="mono">{Math.round(ai.progress)}%</span></div>
+            <div className="progress-copy"><span>{ai.status === 'thinking' ? 'Planning your edit…' : ai.source === 'huggingface' ? 'Downloading from Hugging Face…' : 'Downloading from GitHub…'}</span><span className="mono">{Math.round(ai.progress)}%</span></div>
             <div className="progress-track"><span style={{ width: `${ai.progress}%` }} /></div>
             {ai.progressFile && <small>{ai.progressFile}</small>}
           </div>
@@ -86,9 +92,14 @@ export function ModelDialog({ open, onClose, ai }: Props) {
           {ai.cached && !busy && <button className="text-button danger" onClick={() => void ai.clearModel()}><Trash2 size={16} /> Delete model</button>}
         </div>
 
-        <a className="model-source" href={`https://huggingface.co/${ai.modelId}`} target="_blank" rel="noreferrer">
-          Model source: Hugging Face <ExternalLink size={13} />
-        </a>
+        <div className="model-sources">
+          <a className="model-source" href="https://github.com/openVELM/openvelm.github.io/releases/tag/models-v1" target="_blank" rel="noreferrer">
+            GitHub release <ExternalLink size={13} />
+          </a>
+          <a className="model-source" href={`https://huggingface.co/${ai.modelId}`} target="_blank" rel="noreferrer">
+            Official model card <ExternalLink size={13} />
+          </a>
+        </div>
       </section>
     </div>
   )

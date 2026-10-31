@@ -1,7 +1,43 @@
 import { env, pipeline } from '@huggingface/transformers'
+import { GITHUB_MODEL_RELEASE, MODEL_OPTIONS } from '@/lib/models'
 
 env.allowLocalModels = false
 env.useBrowserCache = true
+
+const mirroredModels = new Set<string>(MODEL_OPTIONS.map((model) => model.id))
+
+function mirrorUrl(input: RequestInfo | URL) {
+  const raw = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+  const url = new URL(raw)
+  if (url.hostname !== 'huggingface.co') return null
+
+  const match = url.pathname.match(/^\/([^/]+\/[^/]+)\/resolve\/[^/]+\/(.+)$/)
+  if (!match || !mirroredModels.has(match[1])) return null
+  const asset = `${match[1].replaceAll('/', '--')}--${match[2].replaceAll('/', '--')}`
+  return `${GITHUB_MODEL_RELEASE}/${asset}`
+}
+
+// Releases use flat asset names. Keep Transformers.js' normal Hugging Face
+// URLs for caching, but fetch each file from the GitHub mirror when available.
+env.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+  const mirror = mirrorUrl(input)
+  if (!mirror) return fetch(input, init)
+
+  const headers = new Headers(init?.headers)
+  headers.delete('Authorization')
+  try {
+    const response = await fetch(mirror, { ...init, headers, credentials: 'omit' })
+    if (response.ok) {
+      post({ type: 'source', source: 'github' })
+      return response
+    }
+  } catch {
+    // A mirror outage must not prevent loading from the upstream model repo.
+  }
+
+  post({ type: 'source', source: 'huggingface' })
+  return fetch(input, init)
+}
 
 interface ChatMessage {
   role: 'system' | 'user'
